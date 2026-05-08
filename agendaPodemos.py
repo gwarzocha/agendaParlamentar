@@ -1,4 +1,5 @@
 import os
+# Comando vital para a nuvem: Garante que o Linux instale o navegador invisível
 os.system("playwright install chromium")
 
 import sys
@@ -187,8 +188,20 @@ def processar_agendas(df, data_ini, data_fim, ui_status, ui_progress):
     total_deputados = len(df)
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
+        # Camuflagem Anti-Robô para a Nuvem
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--disable-blink-features=AutomationControlled"]
+        )
+        
+        # Configuração de usuário real (Português, Fuso Horário de Brasília)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            locale="pt-BR",
+            timezone_id="America/Sao_Paulo",
+            viewport={"width": 1920, "height": 1080}
+        )
+        
         page = context.new_page()
 
         for idx, row in df.iterrows():
@@ -209,6 +222,7 @@ def processar_agendas(df, data_ini, data_fim, ui_status, ui_progress):
 
                 try:
                     page.goto(url, wait_until="networkidle", timeout=30000)
+                    page.wait_for_timeout(1000) # Pausa para a nuvem ler o Javascript
                     texto_bruto = page.evaluate("document.body.innerText")
                     nome_pagina, eventos_dia = extrair_eventos_pagina(texto_bruto)
                     
@@ -224,6 +238,7 @@ def processar_agendas(df, data_ini, data_fim, ui_status, ui_progress):
             url_completa = f"https://www.camara.leg.br/deputados/{codigo}/agenda?termo=&dataInicial__proxy={data_ini_enc_global}&dataInicial={data_ini_enc_global}&dataFinal__proxy={data_fim_enc_global}&dataFinal={data_fim_enc_global}"
             try:
                 page.goto(url_completa, wait_until="networkidle", timeout=30000)
+                page.wait_for_timeout(1000) # Pausa para a nuvem ler o Javascript
                 texto_bruto = page.evaluate("document.body.innerText")
                 nome_pagina, eventos_full = extrair_eventos_pagina(texto_bruto)
                 
@@ -254,7 +269,7 @@ def processar_agendas(df, data_ini, data_fim, ui_status, ui_progress):
             # =========================================
             # MONTAGEM FINAL (WHATSAPP) - REGISTRO INDIVIDUAL
             # =========================================
-            bloco_msg = f"*{nome_parlamentar_oficial}*\n"
+            bloco_msg = f"*{nome_parlamentar_oficial}*\n" # Nome em Negrito!
             bloco_msg += f"Período: {str_ini_global} a {str_fim_global}\n\n"
             
             if eventos_unicos:
